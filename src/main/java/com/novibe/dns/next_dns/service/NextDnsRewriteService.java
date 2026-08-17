@@ -26,7 +26,9 @@ public class NextDnsRewriteService {
 
     public Map<String, CreateRewriteDto> buildNewRewrites(List<HostsOverrideListsLoader.BypassRoute> overrides) {
         Map<String, CreateRewriteDto> rewriteDtos = new HashMap<>();
-        overrides.forEach(route -> rewriteDtos.putIfAbsent(route.website(), new CreateRewriteDto(route.website(), route.ip())));
+        overrides.stream()
+                .filter(route -> !excludeRedirectCheckService.shouldExclude(route.website()))
+                .forEach(route -> rewriteDtos.putIfAbsent(route.website(), new CreateRewriteDto(route.website(), route.ip())));
         return rewriteDtos;
     }
 

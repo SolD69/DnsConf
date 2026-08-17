@@ -16,11 +16,15 @@ public class ExcludeRedirectCheckService {
 
     public boolean shouldExclude(String domain) {
         for (String ignored : ignoringList) {
-            if (domain.endsWith(ignored)) {
+            if (isSameOrSubdomain(domain, ignored)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean isSameOrSubdomain(String domain, String ignored) {
+        return domain.equals(ignored) || domain.endsWith("." + ignored);
     }
 
 }

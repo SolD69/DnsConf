@@ -18,6 +18,7 @@ public class ExcludeRedirectSettingsLoader {
                 .map(String::trim)
                 .map(String::toLowerCase)
                 .map(DataParser::removeWWW)
+                .filter(domain -> !domain.isBlank())
                 .distinct()
                 .toList();
     }

@@ -119,6 +119,12 @@ These domains and their subdomains:
 - will be removed from existing redirect rules;
 - won't be added with new ones.
 
+Matching respects domain label boundaries: `instagram.com` excludes `instagram.com` and
+`api.instagram.com`, but leaves `cdninstagram.com` alone.
+
++ Mind that a parent domain excludes every child: `google.com` drops redirects of both
+  `gemini.google.com` and `aistudio.google.com`.
+
 ---
 
 ## Multiple profiles setup
@@ -168,6 +174,11 @@ For `REDIRECT`:
 For `BLOCK`:
 + If new domains are provided, they will be added
 + The rest block settings are kept untouched
++ A domain that is redirected is never added to the denylist: a blocked domain never reaches the
+  rewrite stage, so blocking it would silently break its redirect
++ If a **parent** domain is blocked (e.g. `google.com` is in `BLOCK` while `gemini.google.com` is
+  redirected), the block wins and the redirect stops working. Such conflicts are reported in the log,
+  but the block is kept — remove it from the source or the redirect will stay broken
 
 Previously generated data is removed **ONLY** when both `BLOCK` and `REDIRECT` sources were not provided.
 

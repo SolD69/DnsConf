@@ -38,11 +38,25 @@ public class NextDnsTaskRunner extends DnsTaskRunner {
     @Override
     protected void process() {
         List<String> blockSources = EnvParser.parse(BLOCK);
+        List<String> rewriteSources = EnvParser.parse(REDIRECT);
+
+        // Redirect domains are needed before the denylist is saved: a blocked domain never reaches
+        // the rewrite stage, so it has to be kept out of the denylist to keep its redirect working.
+        Map<String, CreateRewriteDto> rewriteRequests = Map.of();
+        if (!rewriteSources.isEmpty()) {
+            Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
+            List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
+
+            Log.step("Prepare rewrites");
+            rewriteRequests = nextDnsRewriteService.buildNewRewrites(overrides);
+        }
+
         if (!blockSources.isEmpty()) {
             Log.step("Obtain block lists from %s sources".formatted(blockSources.size()));
             List<String> blocks = blockListsLoader.fetchWebsites(blockSources);
             Log.step("Prepare denylist");
             List<String> filteredBlocklist = nextDnsDenyService.omitExistingDenys(blocks);
+            filteredBlocklist = nextDnsDenyService.omitRedirectedDomains(filteredBlocklist, rewriteRequests.keySet());
             Log.common("Prepared %s domains to block".formatted(filteredBlocklist.size()));
             Log.step("Save denylist");
             nextDnsDenyService.saveDenyList(filteredBlocklist);
@@ -50,15 +64,8 @@ public class NextDnsTaskRunner extends DnsTaskRunner {
             Log.fail("No block sources provided");
         }
 
-        List<String> rewriteSources = EnvParser.parse(REDIRECT);
         if (!rewriteSources.isEmpty()) {
-
-            Log.step("Obtain rewrite lists from %s sources".formatted(rewriteSources.size()));
-            List<HostsOverrideListsLoader.BypassRoute> overrides = overrideListsLoader.fetchWebsites(rewriteSources);
-
-            Log.step("Prepare rewrites");
-            Map<String, CreateRewriteDto> requests = nextDnsRewriteService.buildNewRewrites(overrides);
-            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdatedAndExcluded(requests);
+            List<CreateRewriteDto> createRewriteDtos = nextDnsRewriteService.cleanupOutdatedAndExcluded(rewriteRequests);
 
             Log.step("Save rewrites");
             nextDnsRewriteService.saveRewrites(createRewriteDtos);
